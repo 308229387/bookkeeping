@@ -25,7 +25,8 @@ data class TradeRecord(
     val journal: String = "",
     /**
      * K 线截图相对路径：优先 assets/，否则 filesDir。
-     * 例：trade_charts/wentou_600715.jpg
+     * 单图：`trade_charts/wentou_600715.jpg`
+     * 多图：用 `|` 分隔，例 `trade_charts/a.webp|trade_charts/b.webp`
      */
     val chartImagePath: String = "",
     /** 交易日期（毫秒时间戳） */
@@ -33,6 +34,20 @@ data class TradeRecord(
     val createdAt: Long = System.currentTimeMillis(),
     val updatedAt: Long = System.currentTimeMillis()
 ) {
-    val isWin: Boolean get() = profit > 0
-    val isLoss: Boolean get() = profit < 0
+    /** 金额未知（持股&lt;0，如 gp 导入）时按盈亏比判定胜负 */
+    val isWin: Boolean
+        get() = if (shareCount < 0) riskRewardRatio > 0 else profit > 0
+    val isLoss: Boolean
+        get() = if (shareCount < 0) riskRewardRatio < 0 else profit < 0
+
+    /** 解析 [chartImagePath] 为路径列表（兼容单图与 `|` 多图） */
+    fun chartImagePaths(): List<String> =
+        chartImagePath.split('|')
+            .map { it.trim() }
+            .filter { it.isNotBlank() }
+
+    companion object {
+        fun joinChartPaths(paths: List<String>): String =
+            paths.map { it.trim() }.filter { it.isNotBlank() }.joinToString("|")
+    }
 }

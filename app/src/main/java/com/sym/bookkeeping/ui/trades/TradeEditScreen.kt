@@ -204,7 +204,7 @@ fun TradeEditScreen(
                 horizontalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 OutlinedTextField(
-                    value = if (editing.shareCount == 0) "" else editing.shareCount.toString(),
+                    value = if (editing.shareCount <= 0) "" else editing.shareCount.toString(),
                     onValueChange = { text ->
                         viewModel.updateEditing {
                             it.copy(shareCount = text.toIntOrNull() ?: 0)
@@ -216,7 +216,7 @@ fun TradeEditScreen(
                     singleLine = true
                 )
                 OutlinedTextField(
-                    value = editing.fee.asEditable(),
+                    value = if (editing.fee < 0) "" else editing.fee.asEditable(),
                     onValueChange = { text ->
                         viewModel.updateEditing {
                             it.copy(fee = text.toDoubleOrNull() ?: 0.0)

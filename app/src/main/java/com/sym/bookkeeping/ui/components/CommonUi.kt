@@ -30,7 +30,8 @@ import com.sym.bookkeeping.data.TradeRecord
 import com.sym.bookkeeping.ui.theme.LossRed
 import com.sym.bookkeeping.ui.theme.ProfitGreen
 import com.sym.bookkeeping.ui.util.formatDate
-import com.sym.bookkeeping.ui.util.formatMoney
+import com.sym.bookkeeping.ui.util.formatFee
+import com.sym.bookkeeping.ui.util.formatShareCount
 import com.sym.bookkeeping.ui.util.formatPercent
 import com.sym.bookkeeping.ui.util.formatRatio
 import com.sym.bookkeeping.ui.util.formatSignedMoney
@@ -90,16 +91,28 @@ fun TradeRecordCard(
                         color = MaterialTheme.colorScheme.primary
                     )
                 }
-                ProfitText(record.profit)
+                Text(
+                    text = formatRatio(record.riskRewardRatio),
+                    color = when {
+                        record.riskRewardRatio > 0 -> LossRed
+                        record.riskRewardRatio < 0 -> ProfitGreen
+                        else -> MaterialTheme.colorScheme.onSurfaceVariant
+                    },
+                    fontWeight = FontWeight.SemiBold
+                )
             }
             Spacer(Modifier.height(8.dp))
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
-                MetaChip(label = "盈亏比", value = formatRatio(record.riskRewardRatio))
-                MetaChip(label = "持股", value = "${record.shareCount}")
-                MetaChip(label = "税费", value = formatMoney(record.fee))
+                MetaChip(
+                    label = "金额",
+                    value = formatSignedMoney(record.profit),
+                    valueColor = profitLossColor(record.profit)
+                )
+                MetaChip(label = "持股", value = formatShareCount(record.shareCount))
+                MetaChip(label = "税费", value = formatFee(record.fee))
                 MetaChip(label = "日期", value = formatDate(record.tradeDate))
             }
         }
@@ -107,7 +120,11 @@ fun TradeRecordCard(
 }
 
 @Composable
-fun MetaChip(label: String, value: String) {
+fun MetaChip(
+    label: String,
+    value: String,
+    valueColor: Color = Color.Unspecified
+) {
     Column {
         Text(
             text = label,
@@ -117,7 +134,8 @@ fun MetaChip(label: String, value: String) {
         Text(
             text = value,
             style = MaterialTheme.typography.bodyMedium,
-            fontWeight = FontWeight.Medium
+            fontWeight = FontWeight.Medium,
+            color = valueColor
         )
     }
 }
@@ -277,7 +295,11 @@ fun SummaryStrip(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(horizontal = pad, vertical = if (compact) 6.dp else 16.dp),
-            horizontalArrangement = Arrangement.SpaceEvenly,
+            horizontalArrangement = if (compact) {
+                Arrangement.SpaceBetween
+            } else {
+                Arrangement.SpaceEvenly
+            },
             verticalAlignment = Alignment.CenterVertically
         ) {
             Column(horizontalAlignment = Alignment.CenterHorizontally) {

@@ -2,6 +2,7 @@ package com.sym.bookkeeping.ui
 
 import android.app.Application
 import android.content.ClipData
+import android.content.Context
 import android.content.Intent
 import android.net.Uri
 import androidx.core.content.FileProvider
@@ -38,6 +39,7 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.text.SimpleDateFormat
+import java.util.Calendar
 import java.util.Date
 import java.util.Locale
 
@@ -49,23 +51,51 @@ enum class TradeSort(val label: String) {
     ProfitAsc("金额↑")
 }
 
+/** 按交易日相对今天回溯。全部表示不限时间。 */
+enum class TradeTimeRange(val label: String) {
+    Month1("1月内"),
+    Month3("3月内"),
+    HalfYear("半年"),
+    Year1("1年"),
+    All("全部");
+
+    fun startMillis(now: Long = System.currentTimeMillis()): Long? {
+        if (this == All) return null
+        val calendar = Calendar.getInstance()
+        calendar.timeInMillis = now
+        when (this) {
+            Month1 -> calendar.add(Calendar.MONTH, -1)
+            Month3 -> calendar.add(Calendar.MONTH, -3)
+            HalfYear -> calendar.add(Calendar.MONTH, -6)
+            Year1 -> calendar.add(Calendar.YEAR, -1)
+            All -> return null
+        }
+        return calendar.timeInMillis
+    }
+}
+
 data class TradeListUiState(
     val records: List<TradeRecord> = emptyList(),
     val query: String = "",
     val selectedMethod: String? = null,
     val methods: List<String> = emptyList(),
-    val sort: TradeSort = TradeSort.DateDesc
+    val sort: TradeSort = TradeSort.DateDesc,
+    val timeRange: TradeTimeRange = TradeTimeRange.All
 ) {
-    /** 当前手法/搜索筛选后的集合（未排序） */
+    /** 当前手法/搜索/时间筛选后的集合（未排序） */
     val matched: List<TradeRecord>
-        get() = records.filter { record ->
-            val matchMethod = selectedMethod == null || record.method == selectedMethod
-            val q = query.trim()
-            val matchQuery = q.isEmpty() ||
-                record.symbol.contains(q, ignoreCase = true) ||
-                record.method.contains(q, ignoreCase = true) ||
-                record.journal.contains(q, ignoreCase = true)
-            matchMethod && matchQuery
+        get() {
+            val since = timeRange.startMillis()
+            return records.filter { record ->
+                val matchMethod = selectedMethod == null || record.method == selectedMethod
+                val matchTime = since == null || record.tradeDate >= since
+                val q = query.trim()
+                val matchQuery = q.isEmpty() ||
+                    record.symbol.contains(q, ignoreCase = true) ||
+                    record.method.contains(q, ignoreCase = true) ||
+                    record.journal.contains(q, ignoreCase = true)
+                matchMethod && matchTime && matchQuery
+            }
         }
 
     /** 顶部汇总：按当前筛选范围统计 */
@@ -111,9 +141,12 @@ class TradeViewModel(
     private val thsLimitUpApi: ThsLimitUpApi = ThsLimitUpApi()
 ) : AndroidViewModel(application) {
 
+    private val listPrefs = application.getSharedPreferences(LIST_PREFS, Context.MODE_PRIVATE)
+
     private val query = MutableStateFlow("")
-    private val selectedMethod = MutableStateFlow<String?>(null)
-    private val sort = MutableStateFlow(TradeSort.DateDesc)
+    private val selectedMethod = MutableStateFlow(readSavedMethod())
+    private val sort = MutableStateFlow(readSavedSort())
+    private val timeRange = MutableStateFlow(readSavedTimeRange())
 
     private val _limitUpState = MutableStateFlow(LimitUpUiState())
     val limitUpState: StateFlow<LimitUpUiState> = _limitUpState.asStateFlow()
@@ -123,8 +156,9 @@ class TradeViewModel(
         repository.observeMethods(),
         query,
         selectedMethod,
-        sort
-    ) { records, methods, q, method, sortMode ->
+        combine(sort, timeRange) { sortMode, range -> sortMode to range }
+    ) { records, methods, q, method, sortAndTime ->
+        val (sortMode, range) = sortAndTime
         val trades = records.filter {
             it.method != "盘面复盘" && it.symbol != "A股盘面"
         }
@@ -133,7 +167,8 @@ class TradeViewModel(
             query = q,
             selectedMethod = method,
             methods = methods.filter { it != "盘面复盘" },
-            sort = sortMode
+            sort = sortMode,
+            timeRange = range
         )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), TradeListUiState())
 
@@ -170,11 +205,31 @@ class TradeViewModel(
 
     fun setSelectedMethod(method: String?) {
         selectedMethod.value = method
+        listPrefs.edit().putString(KEY_METHOD, method.orEmpty()).apply()
     }
 
     fun setSort(value: TradeSort) {
         sort.value = value
+        listPrefs.edit().putString(KEY_SORT, value.name).apply()
     }
+
+    fun setTimeRange(value: TradeTimeRange) {
+        timeRange.value = value
+        listPrefs.edit().putString(KEY_TIME, value.name).apply()
+    }
+
+    private fun readSavedMethod(): String? =
+        listPrefs.getString(KEY_METHOD, null)?.takeIf { it.isNotEmpty() }
+
+    private fun readSavedSort(): TradeSort =
+        listPrefs.getString(KEY_SORT, null)
+            ?.let { name -> TradeSort.entries.find { it.name == name } }
+            ?: TradeSort.DateDesc
+
+    private fun readSavedTimeRange(): TradeTimeRange =
+        listPrefs.getString(KEY_TIME, null)
+            ?.let { name -> TradeTimeRange.entries.find { it.name == name } }
+            ?: TradeTimeRange.All
 
     fun startCreate() {
         _editing.value = TradeRecord()
@@ -557,6 +612,11 @@ class TradeViewModel(
     }
 
     companion object {
+        private const val LIST_PREFS = "trade_list_prefs"
+        private const val KEY_METHOD = "method"
+        private const val KEY_SORT = "sort"
+        private const val KEY_TIME = "time"
+
         fun factory(app: BookkeepingApp): ViewModelProvider.Factory =
             object : ViewModelProvider.Factory {
                 @Suppress("UNCHECKED_CAST")

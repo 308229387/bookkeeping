@@ -15,6 +15,12 @@ private val percentFormat = NumberFormat.getPercentInstance(Locale.CHINA).apply 
 
 fun formatMoney(value: Double): String = currencyFormat.format(value)
 
+/** 持股数未知（&lt;0）时显示「-」 */
+fun formatShareCount(value: Int): String = if (value < 0) "-" else value.toString()
+
+/** 税费未知（&lt;0）时显示「-」 */
+fun formatFee(value: Double): String = if (value < 0) "-" else formatMoney(value)
+
 fun formatSignedMoney(value: Double): String {
     val formatted = currencyFormat.format(kotlin.math.abs(value))
     return when {

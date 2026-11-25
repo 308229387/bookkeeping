@@ -41,10 +41,11 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.sym.bookkeeping.data.TradeRecord
 import com.sym.bookkeeping.ui.TradeViewModel
 import com.sym.bookkeeping.ui.components.ProfitText
-import com.sym.bookkeeping.ui.components.TradeChartImage
+import com.sym.bookkeeping.ui.components.TradeChartPager
 import com.sym.bookkeeping.ui.util.formatDate
-import com.sym.bookkeeping.ui.util.formatMoney
+import com.sym.bookkeeping.ui.util.formatFee
 import com.sym.bookkeeping.ui.util.formatRatio
+import com.sym.bookkeeping.ui.util.formatShareCount
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -164,16 +165,17 @@ private fun TradeDetailContent(
                     ProfitText(record.profit)
                 }
                 DetailMetricRow(label = "盈亏比(去税费)", value = formatRatio(record.riskRewardRatio))
-                DetailMetricRow(label = "持股数", value = "${record.shareCount}")
-                DetailMetricRow(label = "税费", value = formatMoney(record.fee))
+                DetailMetricRow(label = "持股数", value = formatShareCount(record.shareCount))
+                DetailMetricRow(label = "税费", value = formatFee(record.fee))
                 DetailMetricRow(label = "交易日期", value = formatDate(record.tradeDate))
             }
         }
 
-        if (record.chartImagePath.isNotBlank()) {
+        val chartPaths = record.chartImagePaths()
+        if (chartPaths.isNotEmpty()) {
             Spacer(Modifier.height(20.dp))
             Text(
-                text = "K线记录",
+                text = if (chartPaths.size > 1) "K线记录（可左右滑动）" else "K线记录",
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.SemiBold
             )
@@ -183,8 +185,8 @@ private fun TradeDetailContent(
                 colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
                 elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
             ) {
-                TradeChartImage(
-                    relativePath = record.chartImagePath,
+                TradeChartPager(
+                    relativePaths = chartPaths,
                     contentDescription = "${record.symbol} K线",
                     modifier = Modifier
                         .fillMaxWidth()

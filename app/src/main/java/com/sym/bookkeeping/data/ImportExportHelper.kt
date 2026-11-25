@@ -88,7 +88,9 @@ class ImportExportHelper(private val context: Context) {
             trackLogs = trackLogs,
             strategies = strategies
         )
-        val imagePaths = records.map { it.chartImagePath }.filter { it.isNotBlank() }.distinct()
+        val imagePaths = records
+            .flatMap { it.chartImagePaths() }
+            .distinct()
         ZipOutputStream(BufferedOutputStream(raw)).use { zip ->
             zip.putNextEntry(ZipEntry("data.json"))
             zip.write(gson.toJson(backup).toByteArray(StandardCharsets.UTF_8))
