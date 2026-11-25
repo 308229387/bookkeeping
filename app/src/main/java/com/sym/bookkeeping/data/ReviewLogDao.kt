@@ -19,12 +19,21 @@ interface ReviewLogDao {
     @Query("SELECT * FROM review_logs WHERE id = :id")
     suspend fun getById(id: Long): ReviewLog?
 
+    @Query("SELECT * FROM review_logs ORDER BY reviewDate DESC, id DESC")
+    suspend fun getAll(): List<ReviewLog>
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insert(log: ReviewLog): Long
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertAll(logs: List<ReviewLog>)
 
     @Update
     suspend fun update(log: ReviewLog)
 
     @Delete
     suspend fun delete(log: ReviewLog)
+
+    @Query("DELETE FROM review_logs")
+    suspend fun deleteAll()
 }

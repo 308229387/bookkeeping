@@ -25,6 +25,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -33,11 +34,15 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.sym.bookkeeping.data.EmotionPlaybooks
 import com.sym.bookkeeping.data.StrategyCatalog
 import com.sym.bookkeeping.data.StrategyGuide
+import com.sym.bookkeeping.data.UserStrategyStore
 import com.sym.bookkeeping.data.WorkerPickRank
 
 private enum class StrategyFilter(val label: String) {
+    Emotion("情绪手法"),
     HighWin("高胜率优选"),
     Diagrams("样图"),
     All("全部"),
@@ -51,15 +56,20 @@ fun StrategyListScreen(
     onOpenDetail: (String) -> Unit,
     onOpenDiagram: (String) -> Unit = {}
 ) {
-    var filter by rememberSaveable { mutableStateOf(StrategyFilter.HighWin) }
-    val strategies = StrategyCatalog.all.filter { guide ->
-        when (filter) {
-            StrategyFilter.All -> true
-            StrategyFilter.HighWin -> guide.highWinRatePick
-            StrategyFilter.Diagrams -> false
-            StrategyFilter.Worker -> guide.workerFriendly
-            StrategyFilter.Short -> guide.style == "短线"
-            StrategyFilter.Swing -> guide.style != "短线"
+    var filter by rememberSaveable { mutableStateOf(StrategyFilter.Emotion) }
+    val strategyRevision by UserStrategyStore.revision.collectAsStateWithLifecycle()
+    val strategies = remember(filter, strategyRevision) {
+        StrategyCatalog.allGuides().filter { guide ->
+            when (filter) {
+                StrategyFilter.All -> true
+                StrategyFilter.Emotion -> guide.style == EmotionPlaybooks.STYLE_TAG
+                StrategyFilter.HighWin -> guide.highWinRatePick
+                StrategyFilter.Diagrams -> false
+                StrategyFilter.Worker -> guide.workerFriendly
+                StrategyFilter.Short -> guide.style == "短线"
+                StrategyFilter.Swing ->
+                    guide.style != "短线" && guide.style != EmotionPlaybooks.STYLE_TAG
+            }
         }
     }
 
@@ -71,7 +81,11 @@ fun StrategyListScreen(
         Spacer(Modifier.height(8.dp))
         Text("战法手册", style = MaterialTheme.typography.headlineMedium)
         Text(
-            text = "可看「样图」理解均线/箱体；高胜率优选方便工薪执行",
+            text = if (filter == StrategyFilter.Emotion) {
+                "对应涨停页情绪：出手时机、仓位、卖点与止损"
+            } else {
+                "可看「样图」理解均线/箱体；高胜率优选方便工薪执行"
+            },
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
@@ -102,6 +116,9 @@ fun StrategyListScreen(
                 contentPadding = PaddingValues(bottom = 24.dp, top = 4.dp),
                 verticalArrangement = Arrangement.spacedBy(10.dp)
             ) {
+                if (filter == StrategyFilter.Emotion) {
+                    item { EmotionPlaybooksIntroCard() }
+                }
                 if (filter == StrategyFilter.HighWin || filter == StrategyFilter.All) {
                     item {
                         WorkerPicksCard(
@@ -114,6 +131,30 @@ fun StrategyListScreen(
                     StrategyListCard(guide = guide, onClick = { onOpenDetail(guide.id) })
                 }
             }
+        }
+    }
+}
+
+@Composable
+private fun EmotionPlaybooksIntroCard() {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.secondaryContainer
+        )
+    ) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Text(
+                text = "情绪手法手册",
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold
+            )
+            Spacer(Modifier.height(4.dp))
+            Text(
+                text = "与涨停页「当日情绪」一一对应。点开每条看：出手时机、仓位、卖点、止损。仅供复盘，非投资建议。",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSecondaryContainer
+            )
         }
     }
 }

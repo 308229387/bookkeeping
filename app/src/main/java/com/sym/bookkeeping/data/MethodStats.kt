@@ -8,7 +8,9 @@ data class MethodStats(
     val breakEvenCount: Int,
     val totalProfit: Double,
     val avgProfit: Double,
-    val avgRiskRewardRatio: Double
+    val avgRiskRewardRatio: Double,
+    /** 各笔盈亏比之和（总点位） */
+    val totalRiskRewardRatio: Double = 0.0
 ) {
     val winRate: Double
         get() = if (totalCount == 0) 0.0 else winCount.toDouble() / totalCount
@@ -21,47 +23,28 @@ object AnalysisCalculator {
     fun byMethod(records: List<TradeRecord>): List<MethodStats> {
         return records
             .groupBy { it.method.ifBlank { "未分类" } }
-            .map { (method, list) ->
-                val wins = list.count { it.isWin }
-                val losses = list.count { it.isLoss }
-                val breakEven = list.size - wins - losses
-                val totalProfit = list.sumOf { it.profit }
-                MethodStats(
-                    method = method,
-                    totalCount = list.size,
-                    winCount = wins,
-                    lossCount = losses,
-                    breakEvenCount = breakEven,
-                    totalProfit = totalProfit,
-                    avgProfit = if (list.isEmpty()) 0.0 else totalProfit / list.size,
-                    avgRiskRewardRatio = if (list.isEmpty()) {
-                        0.0
-                    } else {
-                        list.map { it.riskRewardRatio }.average()
-                    }
-                )
-            }
+            .map { (method, list) -> statsFor(method, list) }
             .sortedByDescending { it.winRate }
     }
 
-    fun overall(records: List<TradeRecord>): MethodStats {
-        val wins = records.count { it.isWin }
-        val losses = records.count { it.isLoss }
-        val breakEven = records.size - wins - losses
-        val totalProfit = records.sumOf { it.profit }
+    fun overall(records: List<TradeRecord>): MethodStats = statsFor("全部", records)
+
+    private fun statsFor(method: String, list: List<TradeRecord>): MethodStats {
+        val wins = list.count { it.isWin }
+        val losses = list.count { it.isLoss }
+        val breakEven = list.size - wins - losses
+        val totalProfit = list.sumOf { it.profit }
+        val totalRatio = list.sumOf { it.riskRewardRatio }
         return MethodStats(
-            method = "全部",
-            totalCount = records.size,
+            method = method,
+            totalCount = list.size,
             winCount = wins,
             lossCount = losses,
             breakEvenCount = breakEven,
             totalProfit = totalProfit,
-            avgProfit = if (records.isEmpty()) 0.0 else totalProfit / records.size,
-            avgRiskRewardRatio = if (records.isEmpty()) {
-                0.0
-            } else {
-                records.map { it.riskRewardRatio }.average()
-            }
+            avgProfit = if (list.isEmpty()) 0.0 else totalProfit / list.size,
+            avgRiskRewardRatio = if (list.isEmpty()) 0.0 else totalRatio / list.size,
+            totalRiskRewardRatio = totalRatio
         )
     }
 }

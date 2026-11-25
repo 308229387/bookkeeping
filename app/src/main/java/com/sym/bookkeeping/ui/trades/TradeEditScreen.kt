@@ -24,6 +24,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -39,9 +40,11 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.sym.bookkeeping.data.TradeMath
 import com.sym.bookkeeping.ui.TradeViewModel
 import com.sym.bookkeeping.ui.util.formatDate
 import java.util.Calendar
+import java.util.Locale
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -53,6 +56,8 @@ fun TradeEditScreen(
     val editing by viewModel.editing.collectAsStateWithLifecycle()
     val context = LocalContext.current
     var showDeleteConfirm by remember { mutableStateOf(false) }
+    var buyAmountText by remember { mutableStateOf("") }
+    var sellAmountText by remember { mutableStateOf("") }
 
     LaunchedEffect(tradeId) {
         if (tradeId == null || tradeId == 0L) {
@@ -60,6 +65,8 @@ fun TradeEditScreen(
         } else {
             viewModel.loadForEdit(tradeId)
         }
+        buyAmountText = ""
+        sellAmountText = ""
     }
 
     val isEdit = editing.id != 0L
@@ -112,6 +119,60 @@ fun TradeEditScreen(
                 horizontalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 OutlinedTextField(
+                    value = buyAmountText,
+                    onValueChange = { buyAmountText = it },
+                    modifier = Modifier.weight(1f),
+                    label = { Text("买入金额(不含税)") },
+                    placeholder = { Text("成交额") },
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                    singleLine = true
+                )
+                OutlinedTextField(
+                    value = sellAmountText,
+                    onValueChange = { sellAmountText = it },
+                    modifier = Modifier.weight(1f),
+                    label = { Text("卖出金额(不含税)") },
+                    placeholder = { Text("成交额") },
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                    singleLine = true
+                )
+            }
+            Text(
+                text = "盈亏比 = (卖出金额 − 买入金额) / 买入金额，不含税费；勿直接填软件含税比例",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            OutlinedButton(
+                onClick = {
+                    val buy = buyAmountText.toDoubleOrNull() ?: return@OutlinedButton
+                    val sell = sellAmountText.toDoubleOrNull() ?: return@OutlinedButton
+                    val ratio = TradeMath.roundRatio(
+                        TradeMath.riskRewardRatioWithoutFee(buy, sell)
+                    )
+                    viewModel.updateEditing { it.copy(riskRewardRatio = ratio) }
+                },
+                modifier = Modifier.fillMaxWidth(),
+                enabled = buyAmountText.toDoubleOrNull()?.let { it > 0 } == true &&
+                    sellAmountText.toDoubleOrNull() != null
+            ) {
+                val buy = buyAmountText.toDoubleOrNull()
+                val sell = sellAmountText.toDoubleOrNull()
+                val preview = if (buy != null && buy > 0 && sell != null) {
+                    String.format(
+                        Locale.CHINA,
+                        "计算盈亏比 → %+.2f%%",
+                        TradeMath.riskRewardRatioWithoutFee(buy, sell)
+                    )
+                } else {
+                    "用买卖金额计算盈亏比"
+                }
+                Text(preview)
+            }
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                OutlinedTextField(
                     value = editing.riskRewardRatio.asEditable(),
                     onValueChange = { text ->
                         viewModel.updateEditing {
@@ -119,8 +180,8 @@ fun TradeEditScreen(
                         }
                     },
                     modifier = Modifier.weight(1f),
-                    label = { Text("盈亏比(%)") },
-                    placeholder = { Text("如 -2.48") },
+                    label = { Text("盈亏比%(去税费)") },
+                    placeholder = { Text("点上方计算") },
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                     singleLine = true
                 )
@@ -133,7 +194,7 @@ fun TradeEditScreen(
                     },
                     modifier = Modifier.weight(1f),
                     label = { Text("盈利金额") },
-                    placeholder = { Text("亏损填负数") },
+                    placeholder = { Text("含税净盈亏") },
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                     singleLine = true
                 )

@@ -20,6 +20,7 @@ import com.sym.bookkeeping.ui.TradeViewModel
 import com.sym.bookkeeping.ui.components.EmptyState
 import com.sym.bookkeeping.ui.components.MethodStatsCard
 import com.sym.bookkeeping.ui.components.SectionTitle
+import com.sym.bookkeeping.ui.io.DataIoBar
 
 @Composable
 fun AnalysisScreen(viewModel: TradeViewModel) {
@@ -31,6 +32,8 @@ fun AnalysisScreen(viewModel: TradeViewModel) {
             .padding(horizontal = 16.dp)
     ) {
         Spacer(Modifier.height(8.dp))
+        DataIoBar(viewModel = viewModel)
+        Spacer(Modifier.height(16.dp))
         Text("数据分析", style = MaterialTheme.typography.headlineMedium)
         Text(
             text = "按交易手法统计胜率、盈亏与笔数",

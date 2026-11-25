@@ -35,11 +35,18 @@ import com.sym.bookkeeping.ui.util.formatPercent
 import com.sym.bookkeeping.ui.util.formatRatio
 import com.sym.bookkeeping.ui.util.formatSignedMoney
 
+/** A 股习惯：盈利/上涨红，亏损/下跌绿 */
+fun profitLossColor(value: Double): Color = when {
+    value > 0 -> LossRed
+    value < 0 -> ProfitGreen
+    else -> Color.Unspecified
+}
+
 @Composable
 fun ProfitText(value: Double, modifier: Modifier = Modifier) {
     val color = when {
-        value > 0 -> ProfitGreen
-        value < 0 -> LossRed
+        value > 0 -> LossRed
+        value < 0 -> ProfitGreen
         else -> MaterialTheme.colorScheme.onSurfaceVariant
     }
     Text(
@@ -62,7 +69,7 @@ fun TradeRecordCard(
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
         elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
     ) {
-        Column(modifier = Modifier.padding(16.dp)) {
+        Column(modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp)) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -76,16 +83,16 @@ fun TradeRecordCard(
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
                     )
-                    Spacer(Modifier.height(4.dp))
+                    Spacer(Modifier.height(2.dp))
                     Text(
                         text = record.method.ifBlank { "未分类手法" },
-                        style = MaterialTheme.typography.bodyMedium,
+                        style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.primary
                     )
                 }
                 ProfitText(record.profit)
             }
-            Spacer(Modifier.height(12.dp))
+            Spacer(Modifier.height(8.dp))
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween
@@ -94,16 +101,6 @@ fun TradeRecordCard(
                 MetaChip(label = "持股", value = "${record.shareCount}")
                 MetaChip(label = "税费", value = formatMoney(record.fee))
                 MetaChip(label = "日期", value = formatDate(record.tradeDate))
-            }
-            if (record.journal.isNotBlank()) {
-                Spacer(Modifier.height(10.dp))
-                Text(
-                    text = record.journal,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    maxLines = 2,
-                    overflow = TextOverflow.Ellipsis
-                )
             }
         }
     }
@@ -166,17 +163,34 @@ fun MethodStatsCard(stats: MethodStats, modifier: Modifier = Modifier) {
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
                 StatItem("总笔数", stats.totalCount.toString())
-                StatItem("盈利", stats.winCount.toString(), ProfitGreen)
-                StatItem("亏损", stats.lossCount.toString(), LossRed)
-                StatItem("总盈亏", formatSignedMoney(stats.totalProfit))
+                StatItem("盈利", stats.winCount.toString(), LossRed)
+                StatItem("亏损", stats.lossCount.toString(), ProfitGreen)
+                StatItem(
+                    "总盈亏",
+                    formatSignedMoney(stats.totalProfit),
+                    profitLossColor(stats.totalProfit)
+                )
             }
             Spacer(Modifier.height(8.dp))
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
-                StatItem("平均盈利", formatSignedMoney(stats.avgProfit))
-                StatItem("平均盈亏比", formatRatio(stats.avgRiskRewardRatio))
+                StatItem(
+                    "平均盈利",
+                    formatSignedMoney(stats.avgProfit),
+                    profitLossColor(stats.avgProfit)
+                )
+                StatItem(
+                    "平均盈亏比",
+                    formatRatio(stats.avgRiskRewardRatio),
+                    profitLossColor(stats.avgRiskRewardRatio)
+                )
+                StatItem(
+                    "总点位",
+                    formatRatio(stats.totalRiskRewardRatio),
+                    profitLossColor(stats.totalRiskRewardRatio)
+                )
             }
         }
     }
@@ -248,8 +262,11 @@ fun SummaryStrip(
     totalCount: Int,
     totalProfit: Double,
     winRate: Double,
-    modifier: Modifier = Modifier
+    totalPoints: Double = 0.0,
+    modifier: Modifier = Modifier,
+    compact: Boolean = false
 ) {
+    val pad = if (compact) 8.dp else 16.dp
     Card(
         modifier = modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(
@@ -259,22 +276,35 @@ fun SummaryStrip(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(16.dp),
-            horizontalArrangement = Arrangement.SpaceEvenly
+                .padding(horizontal = pad, vertical = if (compact) 6.dp else 16.dp),
+            horizontalArrangement = Arrangement.SpaceEvenly,
+            verticalAlignment = Alignment.CenterVertically
         ) {
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                Text("笔数", style = MaterialTheme.typography.labelMedium)
-                Text("$totalCount", fontWeight = FontWeight.Bold)
+                Text("笔数", style = MaterialTheme.typography.labelSmall)
+                Text("$totalCount", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.bodyMedium)
             }
-            Spacer(Modifier.width(8.dp))
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                Text("总盈亏", style = MaterialTheme.typography.labelMedium)
+                Text("总盈亏", style = MaterialTheme.typography.labelSmall)
                 ProfitText(totalProfit)
             }
-            Spacer(Modifier.width(8.dp))
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                Text("总胜率", style = MaterialTheme.typography.labelMedium)
-                Text(formatPercent(winRate), fontWeight = FontWeight.Bold)
+                Text("总胜率", style = MaterialTheme.typography.labelSmall)
+                Text(
+                    formatPercent(winRate),
+                    fontWeight = FontWeight.Bold,
+                    style = MaterialTheme.typography.bodyMedium
+                )
+            }
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                Text("总点位", style = MaterialTheme.typography.labelSmall)
+                Text(
+                    text = formatRatio(totalPoints),
+                    fontWeight = FontWeight.Bold,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = profitLossColor(totalPoints).takeIf { it != Color.Unspecified }
+                        ?: MaterialTheme.colorScheme.onSurface
+                )
             }
         }
     }

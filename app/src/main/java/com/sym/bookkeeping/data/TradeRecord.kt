@@ -10,7 +10,10 @@ data class TradeRecord(
     val symbol: String = "",
     /** 交易手法/策略 */
     val method: String = "",
-    /** 盈亏比（百分比数值），例如 -2.48 表示 -2.48% */
+    /**
+     * 盈亏比（百分比数值），例如 -7.42 表示 -7.42%。
+     * 口径：去税费后 (卖出成交额 - 买入成交额) / 买入成交额，不用行情软件含税比例。
+     */
     val riskRewardRatio: Double = 0.0,
     /** 盈利金额，亏损为负数 */
     val profit: Double = 0.0,
@@ -20,6 +23,11 @@ data class TradeRecord(
     val shareCount: Int = 0,
     /** 交易日志 / 心得 */
     val journal: String = "",
+    /**
+     * K 线截图相对路径：优先 assets/，否则 filesDir。
+     * 例：trade_charts/wentou_600715.jpg
+     */
+    val chartImagePath: String = "",
     /** 交易日期（毫秒时间戳） */
     val tradeDate: Long = System.currentTimeMillis(),
     val createdAt: Long = System.currentTimeMillis(),

@@ -5,8 +5,8 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.MenuBook
 import androidx.compose.material.icons.automirrored.filled.ReceiptLong
 import androidx.compose.material.icons.filled.Analytics
-import androidx.compose.material.icons.filled.ImportExport
 import androidx.compose.material.icons.filled.School
+import androidx.compose.material.icons.filled.TrendingUp
 import androidx.compose.material3.Icon
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
@@ -31,12 +31,15 @@ import androidx.navigation.navArgument
 import com.sym.bookkeeping.ui.TradeViewModel
 import com.sym.bookkeeping.ui.UiMessage
 import com.sym.bookkeeping.ui.analysis.AnalysisScreen
-import com.sym.bookkeeping.ui.io.DataIoScreen
 import com.sym.bookkeeping.ui.journal.JournalScreen
 import com.sym.bookkeeping.ui.journal.ReviewDetailScreen
+import com.sym.bookkeeping.ui.journal.TrackDetailScreen
+import com.sym.bookkeeping.ui.journal.TrackEditScreen
+import com.sym.bookkeeping.ui.limitup.LimitUpScreen
 import com.sym.bookkeeping.ui.strategy.DiagramDetailScreen
 import com.sym.bookkeeping.ui.strategy.StrategyDetailScreen
 import com.sym.bookkeeping.ui.strategy.StrategyListScreen
+import com.sym.bookkeeping.ui.trades.TradeDetailScreen
 import com.sym.bookkeeping.ui.trades.TradeEditScreen
 import com.sym.bookkeeping.ui.trades.TradeListScreen
 
@@ -47,17 +50,17 @@ private sealed class TopDest(
 ) {
     data object Trades : TopDest("trades", "记录", Icons.AutoMirrored.Filled.ReceiptLong)
     data object Strategies : TopDest("strategies", "战法", Icons.Default.School)
+    data object LimitUp : TopDest("limit_up", "行情", Icons.Default.TrendingUp)
     data object Journal : TopDest("journal", "日志", Icons.AutoMirrored.Filled.MenuBook)
     data object Analysis : TopDest("analysis", "分析", Icons.Default.Analytics)
-    data object DataIo : TopDest("data_io", "数据", Icons.Default.ImportExport)
 }
 
 private val topDestinations = listOf(
     TopDest.Trades,
     TopDest.Strategies,
+    TopDest.LimitUp,
     TopDest.Journal,
-    TopDest.Analysis,
-    TopDest.DataIo
+    TopDest.Analysis
 )
 
 @Composable
@@ -71,7 +74,13 @@ fun BookkeepingAppNav(viewModel: TradeViewModel) {
         currentDestination?.hierarchy?.any { it.route == dest.route } == true
     } && route?.startsWith("strategy/") != true &&
         route?.startsWith("diagram/") != true &&
-        route?.startsWith("review/") != true
+        route?.startsWith("review/") != true &&
+        route?.startsWith("track/") != true &&
+        route != "track_edit" &&
+        route?.startsWith("track_edit/") != true &&
+        route?.startsWith("trade_detail/") != true &&
+        route != "trade_edit" &&
+        route?.startsWith("trade_edit/") != true
 
     LaunchedEffect(Unit) {
         viewModel.messages.collect { message ->
@@ -118,7 +127,7 @@ fun BookkeepingAppNav(viewModel: TradeViewModel) {
                 TradeListScreen(
                     viewModel = viewModel,
                     onAddClick = { navController.navigate("trade_edit") },
-                    onItemClick = { id -> navController.navigate("trade_edit/$id") }
+                    onItemClick = { id -> navController.navigate("trade_detail/$id") }
                 )
             }
             composable(TopDest.Strategies.route) {
@@ -138,11 +147,60 @@ fun BookkeepingAppNav(viewModel: TradeViewModel) {
                     onOpenStrategy = { sid -> navController.navigate("strategy/$sid") }
                 )
             }
+            composable(TopDest.LimitUp.route) {
+                LimitUpScreen(viewModel = viewModel)
+            }
             composable(TopDest.Journal.route) {
                 JournalScreen(
                     viewModel = viewModel,
-                    onTradeClick = { id -> navController.navigate("trade_edit/$id") },
+                    onTrackClick = { id -> navController.navigate("track/$id") },
+                    onTrackAdd = {
+                        viewModel.startCreateTrack()
+                        navController.navigate("track_edit")
+                    },
                     onReviewClick = { id -> navController.navigate("review/$id") }
+                )
+            }
+            composable(
+                route = "track/{id}",
+                arguments = listOf(navArgument("id") { type = NavType.LongType })
+            ) { entry ->
+                val id = entry.arguments?.getLong("id") ?: 0L
+                TrackDetailScreen(
+                    trackId = id,
+                    viewModel = viewModel,
+                    onBack = { navController.popBackStack() },
+                    onEdit = { editId -> navController.navigate("track_edit/$editId") }
+                )
+            }
+            composable("track_edit") {
+                TrackEditScreen(
+                    trackId = null,
+                    viewModel = viewModel,
+                    onBack = { navController.popBackStack() }
+                )
+            }
+            composable(
+                route = "track_edit/{id}",
+                arguments = listOf(navArgument("id") { type = NavType.LongType })
+            ) { entry ->
+                val id = entry.arguments?.getLong("id")
+                TrackEditScreen(
+                    trackId = id,
+                    viewModel = viewModel,
+                    onBack = { navController.popBackStack() }
+                )
+            }
+            composable(
+                route = "trade_detail/{id}",
+                arguments = listOf(navArgument("id") { type = NavType.LongType })
+            ) { entry ->
+                val id = entry.arguments?.getLong("id") ?: 0L
+                TradeDetailScreen(
+                    tradeId = id,
+                    viewModel = viewModel,
+                    onBack = { navController.popBackStack() },
+                    onEdit = { editId -> navController.navigate("trade_edit/$editId") }
                 )
             }
             composable(
@@ -158,9 +216,6 @@ fun BookkeepingAppNav(viewModel: TradeViewModel) {
             }
             composable(TopDest.Analysis.route) {
                 AnalysisScreen(viewModel = viewModel)
-            }
-            composable(TopDest.DataIo.route) {
-                DataIoScreen(viewModel = viewModel)
             }
             composable("trade_edit") {
                 TradeEditScreen(

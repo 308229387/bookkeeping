@@ -28,6 +28,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import com.sym.bookkeeping.data.EmotionPlaybooks
 import com.sym.bookkeeping.data.StrategyCatalog
 import com.sym.bookkeeping.data.StrategyDiagramCatalog
 import com.sym.bookkeeping.ui.components.AssetImage
@@ -123,6 +124,7 @@ fun StrategyDetailScreen(
                 Spacer(Modifier.height(12.dp))
             }
 
+            val emotionStyle = guide.style == EmotionPlaybooks.STYLE_TAG
             SectionCard(title = "可操作性评估") {
                 Text(
                     text = guide.operabilityNote,
@@ -130,15 +132,15 @@ fun StrategyDetailScreen(
                 )
             }
             Spacer(Modifier.height(12.dp))
-            SectionCard(title = "买入标准") {
+            SectionCard(title = if (emotionStyle) "出手时机与仓位" else "买入标准") {
                 NumberedList(guide.buyRules)
             }
             Spacer(Modifier.height(12.dp))
-            SectionCard(title = "卖出标准") {
+            SectionCard(title = if (emotionStyle) "卖点" else "卖出标准") {
                 NumberedList(guide.sellRules)
             }
             Spacer(Modifier.height(12.dp))
-            SectionCard(title = "止损点") {
+            SectionCard(title = if (emotionStyle) "止损与风控" else "止损点") {
                 NumberedList(guide.stopLossRules)
             }
             Spacer(Modifier.height(12.dp))
