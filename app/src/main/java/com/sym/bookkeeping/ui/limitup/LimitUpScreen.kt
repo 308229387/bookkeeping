@@ -115,9 +115,7 @@ fun LimitUpScreen(viewModel: TradeViewModel) {
     var poolTab by rememberSaveable { mutableStateOf(PoolTab.Up) }
 
     LaunchedEffect(Unit) {
-        if (state.focus == null && !state.loading) {
-            viewModel.refreshLimitUpPool()
-        }
+        viewModel.refreshLimitUpPool()
     }
 
     Column(

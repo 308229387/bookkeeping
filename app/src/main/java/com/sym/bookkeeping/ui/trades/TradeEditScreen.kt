@@ -1,13 +1,16 @@
 package com.sym.bookkeeping.ui.trades
 
 import android.app.DatePickerDialog
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
@@ -15,7 +18,9 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material.icons.filled.CalendarMonth
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
@@ -37,9 +42,11 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.sym.bookkeeping.data.StrategyCatalog
 import com.sym.bookkeeping.data.TradeMath
 import com.sym.bookkeeping.ui.TradeViewModel
 import com.sym.bookkeeping.ui.util.formatDate
@@ -56,6 +63,7 @@ fun TradeEditScreen(
     val editing by viewModel.editing.collectAsStateWithLifecycle()
     val context = LocalContext.current
     var showDeleteConfirm by remember { mutableStateOf(false) }
+    var showMethodPicker by remember { mutableStateOf(false) }
     var buyAmountText by remember { mutableStateOf("") }
     var sellAmountText by remember { mutableStateOf("") }
 
@@ -106,14 +114,25 @@ fun TradeEditScreen(
                 label = { Text("标的名称 / 代码") },
                 singleLine = true
             )
-            OutlinedTextField(
-                value = editing.method,
-                onValueChange = { value -> viewModel.updateEditing { it.copy(method = value) } },
-                modifier = Modifier.fillMaxWidth(),
-                label = { Text("手法") },
-                placeholder = { Text("如：突破回踩、趋势跟随") },
-                singleLine = true
-            )
+            Box(modifier = Modifier.fillMaxWidth()) {
+                OutlinedTextField(
+                    value = editing.method,
+                    onValueChange = {},
+                    readOnly = true,
+                    modifier = Modifier.fillMaxWidth(),
+                    label = { Text("手法") },
+                    placeholder = { Text("请选择手法") },
+                    trailingIcon = {
+                        Icon(Icons.Default.ArrowDropDown, contentDescription = null)
+                    },
+                    singleLine = true
+                )
+                Box(
+                    modifier = Modifier
+                        .matchParentSize()
+                        .clickable { showMethodPicker = true }
+                )
+            }
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(12.dp)
@@ -271,6 +290,57 @@ fun TradeEditScreen(
             }
             Spacer(Modifier.height(24.dp))
         }
+    }
+
+    if (showMethodPicker) {
+        val choices = StrategyCatalog.tradeMethodChoices(editing.method)
+        AlertDialog(
+            onDismissRequest = { showMethodPicker = false },
+            title = { Text("选择手法") },
+            text = {
+                Column(
+                    modifier = Modifier
+                        .heightIn(max = 420.dp)
+                        .verticalScroll(rememberScrollState())
+                ) {
+                    choices.forEach { name ->
+                        val selected = name == editing.method
+                        TextButton(
+                            onClick = {
+                                viewModel.updateEditing { it.copy(method = name) }
+                                showMethodPicker = false
+                            },
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween
+                            ) {
+                                Text(
+                                    text = name,
+                                    fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal,
+                                    color = if (selected) {
+                                        MaterialTheme.colorScheme.primary
+                                    } else {
+                                        MaterialTheme.colorScheme.onSurface
+                                    }
+                                )
+                                if (selected) {
+                                    Icon(
+                                        Icons.Default.Check,
+                                        contentDescription = null,
+                                        tint = MaterialTheme.colorScheme.primary
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { showMethodPicker = false }) { Text("取消") }
+            }
+        )
     }
 
     if (showDeleteConfirm) {

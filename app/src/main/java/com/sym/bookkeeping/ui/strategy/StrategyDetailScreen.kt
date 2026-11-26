@@ -28,6 +28,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import com.sym.bookkeeping.data.CoreMethods
 import com.sym.bookkeeping.data.EmotionPlaybooks
 import com.sym.bookkeeping.data.StrategyCatalog
 import com.sym.bookkeeping.data.StrategyDiagramCatalog
@@ -107,11 +108,11 @@ fun StrategyDetailScreen(
             if (diagrams.isNotEmpty()) {
                 SectionCard(title = "样图理解") {
                     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                        Text(
-                            text = "示意教学图，帮助对照均线/箱体/止损位置",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
+            Text(
+                text = "买卖点示意，用来对照结构，不是对后市的预测。",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
                         diagrams.forEach { diagram ->
                             Text(diagram.title, fontWeight = FontWeight.SemiBold)
                             AssetImage(
@@ -121,6 +122,18 @@ fun StrategyDetailScreen(
                         }
                     }
                 }
+                Spacer(Modifier.height(12.dp))
+            }
+
+            val essay = CoreMethods.essayOf(guide.id)
+            if (essay != null) {
+                SectionCard(title = "适用环境") { NumberedList(essay.environment) }
+                Spacer(Modifier.height(12.dp))
+                SectionCard(title = "心理") { NumberedList(essay.psychology) }
+                Spacer(Modifier.height(12.dp))
+                SectionCard(title = "量价") { NumberedList(essay.volumePrice) }
+                Spacer(Modifier.height(12.dp))
+                SectionCard(title = "时空") { NumberedList(essay.timeSpace) }
                 Spacer(Modifier.height(12.dp))
             }
 

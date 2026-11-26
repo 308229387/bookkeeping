@@ -132,8 +132,7 @@ fun BookkeepingAppNav(viewModel: TradeViewModel) {
             }
             composable(TopDest.Strategies.route) {
                 StrategyListScreen(
-                    onOpenDetail = { id -> navController.navigate("strategy/$id") },
-                    onOpenDiagram = { id -> navController.navigate("diagram/$id") }
+                    onOpenDetail = { id -> navController.navigate("strategy/$id") }
                 )
             }
             composable(

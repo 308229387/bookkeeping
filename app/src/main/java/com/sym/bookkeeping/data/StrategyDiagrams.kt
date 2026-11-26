@@ -12,39 +12,39 @@ data class StrategyDiagram(
 object StrategyDiagramCatalog {
     val all: List<StrategyDiagram> = listOf(
         StrategyDiagram(
-            id = "weekly_daily",
-            title = "周线定方向 + 日线找买点",
-            subtitle = "周MA20 定多头，日线回踩 MA10/20 买",
-            assetPath = "diagrams/weekly_daily_pullback.png",
-            relatedStrategyId = "weekly_trend_daily"
+            id = "duanban_fanbao",
+            title = "断板反包",
+            subtitle = "断板放量之后，回封确认再买，次日冲高卖",
+            assetPath = "diagrams/duanban_fanbao.png",
+            relatedStrategyId = "duanban_fanbao"
         ),
         StrategyDiagram(
-            id = "breakout",
-            title = "突破回踩确认法",
-            subtitle = "突破日不买，回踩站稳再买",
-            assetPath = "diagrams/breakout_pullback.png",
-            relatedStrategyId = "pullback_confirm"
+            id = "longtou",
+            title = "龙头战法",
+            subtitle = "分歧转一致再买，断板不回封就卖",
+            assetPath = "diagrams/longtou.png",
+            relatedStrategyId = "longtou"
         ),
         StrategyDiagram(
-            id = "box",
-            title = "箱体网格法",
-            subtitle = "箱体内高低买卖，破下沿止损",
-            assetPath = "diagrams/box_grid.png",
-            relatedStrategyId = "grid_range"
+            id = "lianban",
+            title = "连板接力",
+            subtitle = "沿梯队接力，高度塌了或断板就走",
+            assetPath = "diagrams/lianban.png",
+            relatedStrategyId = "lianban"
         ),
         StrategyDiagram(
-            id = "ma5",
-            title = "5日均线顺势法",
-            subtitle = "MA5 向上买、向下卖",
-            assetPath = "diagrams/ma5_trend.png",
-            relatedStrategyId = "ma5_trend"
+            id = "qushi_huicai",
+            title = "趋势回踩",
+            subtitle = "回踩均线站稳再买，跌破或硬止损结束",
+            assetPath = "diagrams/qushi_huicai.png",
+            relatedStrategyId = "qushi_huicai"
         ),
         StrategyDiagram(
-            id = "stop",
-            title = "止损与退出示意",
-            subtitle = "价止损 + 均线减仓/清仓 + 硬止损",
-            assetPath = "diagrams/stop_loss.png",
-            relatedStrategyId = "weekly_trend_daily"
+            id = "ma5_shunshi",
+            title = "5日均线顺势",
+            subtitle = "MA5 拐头向上买，拐头向下卖",
+            assetPath = "diagrams/ma5_shunshi.png",
+            relatedStrategyId = "ma5_shunshi"
         )
     )
 

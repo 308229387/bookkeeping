@@ -20,11 +20,14 @@ import com.sym.bookkeeping.data.TrackLog
 import com.sym.bookkeeping.data.TradeRecord
 import com.sym.bookkeeping.data.TradeRepository
 import com.sym.bookkeeping.data.UserStrategyStore
+import com.sym.bookkeeping.data.market.LimitFocusCache
+import com.sym.bookkeeping.data.market.LimitFocusResult
 import com.sym.bookkeeping.data.market.LimitSectionReady
 import com.sym.bookkeeping.data.market.LimitUpCount
 import com.sym.bookkeeping.data.market.LimitUpPoolResult
 import com.sym.bookkeeping.data.market.LimitUpUiState
 import com.sym.bookkeeping.data.market.ThsLimitUpApi
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -150,6 +153,7 @@ class TradeViewModel(
 
     private val _limitUpState = MutableStateFlow(LimitUpUiState())
     val limitUpState: StateFlow<LimitUpUiState> = _limitUpState.asStateFlow()
+    private var limitUpGeneration = 0
 
     val listState: StateFlow<TradeListUiState> = combine(
         repository.observeAll(),
@@ -285,55 +289,109 @@ class TradeViewModel(
         }
     }
 
+    /**
+     * 打开行情：已有数据或磁盘缓存先留在页面上，再拉新数据。
+     * 没有缓存时仍按块逐步显示。成功后写入缓存。
+     */
     fun refreshLimitUpPool() {
+        val generation = ++limitUpGeneration
         viewModelScope.launch {
-            _limitUpState.update {
-                it.copy(
-                    loading = true,
-                    error = null,
-                    sectionReady = LimitSectionReady(),
-                    // 保留旧 focus 也可；刷新时先清空避免新旧混杂
-                    focus = null,
-                    result = null
-                )
-            }
-            runCatching {
-                thsLimitUpApi.fetchLimitFocusProgressive(historyDays = 20) { focus, ready ->
-                    val legacy = LimitUpPoolResult(
-                        date = focus.date,
-                        total = focus.upStocks.size,
-                        count = LimitUpCount(
-                            todayNum = focus.upCount.num,
-                            todayHistoryNum = focus.upCount.historyNum,
-                            todayRate = focus.upCount.rate,
-                            todayOpenNum = focus.upCount.openNum,
-                            yesterdayNum = focus.yesterdayUpNum
-                        ),
-                        stocks = focus.upStocks
+            if (_limitUpState.value.focus == null) {
+                val snap = withContext(Dispatchers.IO) {
+                    LimitFocusCache.load(getApplication())
+                }
+                if (generation != limitUpGeneration) return@launch
+                if (snap != null && _limitUpState.value.focus == null) {
+                    _limitUpState.value = limitUpStateFrom(
+                        focus = snap.focus,
+                        ready = snap.sectionReady,
+                        updatedAt = snap.updatedAt,
+                        loading = true
                     )
-                    _limitUpState.update {
-                        it.copy(
-                            loading = !ready.allReady,
-                            error = null,
-                            result = legacy,
+                }
+            }
+            if (generation != limitUpGeneration) return@launch
+            val keepVisible = _limitUpState.value.focus
+            _limitUpState.update { it.copy(loading = true, error = null) }
+            var latest: LimitFocusResult? = null
+            var latestReady = LimitSectionReady()
+            try {
+                thsLimitUpApi.fetchLimitFocusProgressive(historyDays = 20) { focus, ready ->
+                    if (generation != limitUpGeneration) return@fetchLimitFocusProgressive
+                    latest = focus
+                    latestReady = ready
+                    if (keepVisible == null) {
+                        _limitUpState.value = limitUpStateFrom(
                             focus = focus,
-                            sectionReady = ready,
-                            updatedAt = System.currentTimeMillis()
+                            ready = ready,
+                            updatedAt = System.currentTimeMillis(),
+                            loading = !ready.allReady
                         )
                     }
                 }
-            }.onSuccess {
-                _limitUpState.update { it.copy(loading = false) }
-            }.onFailure { e ->
+                if (generation != limitUpGeneration) return@launch
+                val fresh = latest
+                if (fresh != null) {
+                    val updatedAt = System.currentTimeMillis()
+                    _limitUpState.value = limitUpStateFrom(
+                        focus = fresh,
+                        ready = latestReady,
+                        updatedAt = updatedAt,
+                        loading = false
+                    )
+                    withContext(Dispatchers.IO) {
+                        LimitFocusCache.save(
+                            getApplication(),
+                            LimitFocusCache.Snapshot(
+                                updatedAt = updatedAt,
+                                focus = fresh,
+                                sectionReady = latestReady
+                            )
+                        )
+                    }
+                } else {
+                    _limitUpState.update { it.copy(loading = false) }
+                }
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                if (generation != limitUpGeneration) return@launch
                 _limitUpState.update {
                     it.copy(
                         loading = false,
-                        error = e.message ?: "拉取涨停聚焦失败"
+                        error = if (it.focus == null) e.message ?: "拉取涨停聚焦失败" else null
                     )
                 }
                 _messages.emit(UiMessage.Text("涨停聚焦拉取失败：${e.message}"))
             }
         }
+    }
+
+    private fun limitUpStateFrom(
+        focus: LimitFocusResult,
+        ready: LimitSectionReady,
+        updatedAt: Long,
+        loading: Boolean
+    ): LimitUpUiState {
+        return LimitUpUiState(
+            loading = loading,
+            error = null,
+            result = LimitUpPoolResult(
+                date = focus.date,
+                total = focus.upStocks.size,
+                count = LimitUpCount(
+                    todayNum = focus.upCount.num,
+                    todayHistoryNum = focus.upCount.historyNum,
+                    todayRate = focus.upCount.rate,
+                    todayOpenNum = focus.upCount.openNum,
+                    yesterdayNum = focus.yesterdayUpNum
+                ),
+                stocks = focus.upStocks
+            ),
+            focus = focus,
+            sectionReady = ready,
+            updatedAt = updatedAt
+        )
     }
 
     /** 把当前涨停聚焦摘要写入一条复盘日志 */
